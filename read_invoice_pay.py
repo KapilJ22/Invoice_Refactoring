@@ -1,48 +1,79 @@
 import json
 
 
-def read_invoice_plays_print(invoice: {}, plays: {}):
-    total_amount = 0
-    volumeCredits = 0
+def playFor(aPerformance):
+    with open('./plays.json') as f:
+        plays = json.load(f)
+    play_id = aPerformance["playID"]
+    play = plays[play_id]
+    return play
 
-    #     print(invoice)
-    #     print(json.dumps(plays, indent=4, sort_keys=True))
-    #     print(json.dumps(invoice, indent=4, sort_keys=True))
+
+def amountFor(aPerformance):
+    result = 0
+    #     play = playFor(aPerformance)
+    #     play_type = playFor(aPerformance)["type"]
+    if playFor(aPerformance)["type"] == "tragedy":
+        result = 40000
+    if aPerformance["audience"] > 30:
+        result += 1000 * (aPerformance["audience"] - 30)
+    elif playFor(aPerformance)["type"] == "comedy":
+        result = 30000
+    if aPerformance["audience"] > 20:
+        result += 10000 + 500 * (aPerformance["audience"] - 20)
+        result += 300 * aPerformance["audience"]
+    else:
+        return "unknown type"
+    return result
+
+
+class StatementData:
+    pass
+
+
+def statement(invoice: {}, plays: {}):
+    statementData = StatementData()
     customer_invoice = invoice[0]
-    print()
-    result = 'Statement for {}\n'.format(customer_invoice["customer"])
-    print(result)
-    print("customer_invoice: {}".format(customer_invoice))
-    for perf in customer_invoice["performances"]:
-        thisAmount = 0
-        play_id = perf["playID"]
-        play_type = plays[play_id]["type"]
-        if play_type == "tragedy":
-            thisAmount = 40000
-            if perf["audience"] > 30:
-                thisAmount += 1000 * (perf["audience"] - 30)
-        elif play_type == "comedy":
-            thisAmount = 30000
-            if perf["audience"] > 20:
-                thisAmount += 10000 + 500 * (perf["audience"] - 20)
-                thisAmount += 300 * perf["audience"]
+    statementData.customer = customer_invoice["customer"]
+    statementData.performances = customer_invoice["performances"]
+    return renderPlanText(statementData)
 
-        else:
-            return "unknown type"
 
-        # // add volume credits
-        volumeCredits += max(perf["audience"] - 30, 0)
-        #     // add extra credit for every ten comedy attendees
-        if "comedy" == play_type:
-            volumeCredits += (perf["audience"] // 5)
+def renderPlanText(data):
+    #     customer_invoice = invoice[0]
+    result = 'Statement for {}\n'.format(data.customer)
 
+    for perf in data.performances:
         #  // print line for this order
-        result += '  {}: ${} {}seats \n'.format(play_id, thisAmount / 100,
-                                                perf["audience"])
-        total_amount += thisAmount
+        result += '  {}: ${} {}seats \n'.format(
+            playFor(perf)["name"],
+            amountFor(perf) / 100, perf["audience"])
 
-    result += 'Amount owed is ${}\n'.format(total_amount / 100)
-    result += "You earned ${} credits".format(volumeCredits)
+    result += 'Amount owed is ${}\n'.format(totalAmount(data) / 100)
+    result += "You earned ${} credits".format(totalVolumeCredits(data))
+    return result
+
+
+def totalAmount(data):
+    total_amount = 0
+    for perf in data.performances:
+        total_amount += amountFor(perf)
+        return total_amount
+
+
+def totalVolumeCredits(data):
+    volumeCredits = 0
+    for perf in data.performances:
+        volumeCredits += volumeCreditsFor(perf)
+    return volumeCredits
+
+
+def volumeCreditsFor(aPerf):
+    result = 0
+    result += max(aPerf["audience"] - 30, 0)
+    #     // add extra credit for every ten comedy attendees
+    if "comedy" == playFor(aPerf)["type"]:
+        result += (aPerf["audience"] // 5)
     return result
 
 
@@ -58,7 +89,7 @@ def main():
 
 #     print(invoice)
 
-    result = read_invoice_plays_print(invoice, plays)
+    result = statement(invoice, plays)
     print(result)
 
 if __name__ == "__main__":
